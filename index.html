@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NaCadencia | Burnup</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-frame">
+      <aside class="main-sidebar" aria-label="Menu principal">
+        <div class="sidebar-head">
+          <div class="brand-lockup" aria-label="NaCadencia">
+            <div class="brand-mark" aria-hidden="true"><span></span></div>
+            <div class="brand-copy">
+              <p class="brand-kicker">NaCadencia</p>
+              <strong>Eficiência em fluxo</strong>
+            </div>
+          </div>
+          <button
+            class="menu-toggle"
+            id="menuToggle"
+            type="button"
+            aria-label="Recolher menu"
+            aria-expanded="true"
+          >
+            ‹
+          </button>
+        </div>
+        <nav class="main-nav">
+          <a class="nav-item active" href="#burnup" data-short="B"><span class="nav-label">Burnup</span></a>
+        </nav>
+      </aside>
+
+      <main class="app-shell" id="burnup">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Sessão ativa</p>
+            <h1>Burnup</h1>
+          </div>
+          <button class="status-pill" id="openLoadModal" type="button">Carregar épico</button>
+      </header>
+
+      <section class="workspace" aria-label="Burnup">
+        <section class="insight-area">
+          <section class="epic-context" aria-label="Contexto do épico">
+            <div>
+              <span>Épico</span>
+              <strong id="epicContextName">Nenhum épico carregado</strong>
+            </div>
+            <div class="epic-dates">
+              <span>Início: <strong id="epicContextStart">-</strong></span>
+              <span>Previsão de conclusão: <strong id="epicContextEnd">-</strong></span>
+            </div>
+          </section>
+
+          <div class="summary-grid" aria-label="Resumo do épico">
+            <article>
+              <span>Total</span>
+              <strong id="totalCount">0</strong>
+            </article>
+            <article>
+              <span>Concluídas</span>
+              <strong id="doneCount">0</strong>
+            </article>
+            <article>
+              <span>Em aberto</span>
+              <strong id="openCount">0</strong>
+            </article>
+            <article>
+              <span>Em Progresso</span>
+              <strong id="devCount">0</strong>
+            </article>
+            <article>
+              <span>Sem iniciar</span>
+              <strong id="notStartedCount">0</strong>
+            </article>
+            <article>
+              <span>Percentil 75%</span>
+              <strong id="percentile75">-</strong>
+            </article>
+            <article>
+              <span>% conclusão</span>
+              <strong id="completionPercent">0%</strong>
+            </article>
+          </div>
+
+          <div class="chart-panel">
+            <div class="chart-heading">
+              <div>
+                <h2 id="chartTitle">Evolução do burnup</h2>
+                <p id="chartSubtitle">Carregue um épico ou carregue o exemplo para visualizar o burnup.</p>
+              </div>
+              <div class="chart-legend" aria-label="Legenda do gráfico">
+                <span><i class="dot planned"></i> Planejado</span>
+                <span><i class="dot done"></i> Concluído</span>
+                <span><i class="dot scope"></i> Escopo total</span>
+              </div>
+            </div>
+            <div class="canvas-wrap">
+              <canvas id="burnupChart" width="1200" height="520"></canvas>
+              <div class="empty-state" id="emptyState">Sem dados carregados</div>
+            </div>
+          </div>
+
+          <section class="insights-panel collapsed" aria-label="Insights da análise do burnup">
+            <div class="insights-header">
+              <div class="traffic-light" id="trafficLight" aria-hidden="true">
+                <span></span>
+              </div>
+              <div>
+                <h2 id="insightTitle">Semáforo do burnup</h2>
+                <p id="insightSummary">Carregue um épico ou carregue o exemplo para gerar a análise.</p>
+              </div>
+              <button class="insights-toggle" id="toggleInsights" type="button" aria-expanded="false">
+                Expandir
+              </button>
+            </div>
+            <div class="insight-metrics">
+              <span id="plannedMetric">Planejado: -</span>
+              <span id="actualMetric">Concluído até hoje: -</span>
+              <span id="gapMetric">Gap: -</span>
+              <span id="remainingMetric">Dias restantes: -</span>
+            </div>
+            <ul class="action-list" id="actionList">
+              <li>Aguardando dados para recomendar próximos passos.</li>
+            </ul>
+            <div class="owner-distribution" id="ownerDistribution">
+              <h3>Distribuição por responsável</h3>
+              <div class="owner-table-wrap">
+                <table class="owner-table">
+                  <thead>
+                    <tr>
+                      <th>Colaborador</th>
+                      <th>Sem Puxar</th>
+                      <th>Em Progresso</th>
+                      <th>Impedidas</th>
+                      <th>Concluídas</th>
+                      <th>% atuação</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ownerRows">
+                    <tr>
+                      <td colspan="6" class="muted-cell">Sem dados de responsáveis.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <div class="table-panel">
+            <div class="table-heading">
+              <h2>Demandas</h2>
+              <span id="fileName">Nenhum arquivo selecionado</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Chave</th>
+                    <th>Criação</th>
+                    <th>Em Progresso</th>
+                    <th>Conclusão</th>
+                    <th>WIP</th>
+                    <th>Impedimento</th>
+                    <th>Responsável</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="demandRows">
+                  <tr>
+                    <td colspan="8" class="muted-cell">As demandas aparecerão aqui.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop hidden" id="loadModal" role="dialog" aria-modal="true" aria-labelledby="loadModalTitle">
+      <div class="modal-card">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Carregamento</p>
+            <h2 id="loadModalTitle">Carregar épico</h2>
+          </div>
+          <button class="modal-close" id="closeLoadModal" type="button" aria-label="Fechar modal">×</button>
+        </div>
+
+        <div class="modal-content">
+          <div class="panel-section">
+            <h2>Novo épico</h2>
+            <div class="field">
+              <label for="epicName">Nome do épico</label>
+              <input
+                id="epicName"
+                type="text"
+                placeholder="Ex: Circular 4001/20"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="epicStart">Data de início</label>
+                <input id="epicStart" type="date" />
+              </div>
+
+              <div class="field">
+                <label for="targetEnd">Data prevista de entrega</label>
+                <input id="targetEnd" type="date" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="csvFile">CSV do épico</label>
+              <label class="upload-zone" for="csvFile" id="uploadZone">
+                <span class="upload-icon" aria-hidden="true">CSV</span>
+                <span>
+                  <strong>Selecionar arquivo</strong>
+                  <small>
+                    chave, data de criação, data em progresso, data de conclusão,
+                    impedimentos, quem está fazendo
+                  </small>
+                </span>
+              </label>
+              <input id="csvFile" type="file" accept=".csv,text/csv" />
+            </div>
+
+            <button class="primary-button" id="createEpic" type="button">Carregar épico</button>
+            <p class="form-message" id="formMessage" role="status"></p>
+          </div>
+
+          <div class="panel-section examples-section">
+            <h2>Exemplos</h2>
+            <div class="sample-actions" aria-label="Exemplos de burnup">
+              <button class="sample-button good" type="button" data-sample="onTrack">
+                Dentro do prazo
+              </button>
+              <button class="sample-button warning" type="button" data-sample="attention">
+                Ponto de atenção
+              </button>
+              <button class="sample-button critical" type="button" data-sample="risk">
+                Em risco
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
