@@ -108,6 +108,16 @@ function minDateText(first, second) {
   return parseDate(first) < parseDate(second) ? first : second;
 }
 
+function formatCsvDate(dateText, time = "") {
+  const date = parseDate(dateText);
+  const value = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+  return time ? `${value} ${time}` : value;
+}
+
 function buildScenarioRows(doneCount, devCount, notStartedCount) {
   const rows = [];
   const people = ["Ana", "Bruno", "Carla", "Diego", "Elisa"];
@@ -118,12 +128,13 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
     const dev = addDays(done, -wip);
     rows.push([
       `C4001-${String(index + 1).padStart(3, "0")}`,
-      maxDateText("2026-04-15", addDays(dev, -1)),
-      dev,
-      done,
-      "DONE",
+      formatCsvDate(maxDateText("2026-04-15", addDays(dev, -1)), "09:00"),
+      formatCsvDate(dev),
+      formatCsvDate(done, "17:30"),
+      "Done",
       "",
       people[index % people.length],
+      "-",
     ]);
   }
 
@@ -132,12 +143,13 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
     const created = createdDays[(doneCount + index) % createdDays.length];
     rows.push([
       `C4001-${String(keyNumber).padStart(3, "0")}`,
-      minDateText(created, "2026-04-30"),
-      "2026-04-30",
+      formatCsvDate(minDateText(created, "2026-04-30"), "09:00"),
+      formatCsvDate("2026-04-30"),
       "",
-      "IN PROGRESS",
+      "In Progress",
       index < Math.ceil(devCount / 3) ? "Impediment" : "",
       people[(doneCount + index) % people.length],
+      "-",
     ]);
   }
 
@@ -145,12 +157,13 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
     const keyNumber = doneCount + devCount + index + 1;
     rows.push([
       `C4001-${String(keyNumber).padStart(3, "0")}`,
-      createdDays[(doneCount + devCount + index) % createdDays.length],
+      formatCsvDate(createdDays[(doneCount + devCount + index) % createdDays.length], "09:00"),
       "",
       "",
-      index % 2 === 0 ? "OPEN" : "BACKLOG",
+      index % 2 === 0 ? "Open" : "Backlog",
       "",
-      "",
+      "Unassigned",
+      "-",
     ]);
   }
 
@@ -159,7 +172,7 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
 
 function rowsToCsv(rows) {
   return [
-    "chave,data de criação,data em progresso,data de conclusão,status,flagged,responsável",
+    "Key,Created,Start date,Resolved,Status,Flagged,Assignee,Total",
     ...rows.map((row) => row.join(",")),
   ].join("\n");
 }
@@ -242,6 +255,7 @@ function parseCsv(text) {
     key: indexOf("key", "chave", "id"),
     created: indexOf("data de criacao", "data criacao", "criacao", "created"),
     dev: indexOf(
+      "start date",
       "data em desenvolvimento",
       "data desenvolvimento",
       "em desenvolvimento",
@@ -250,10 +264,10 @@ function parseCsv(text) {
       "em progresso",
       "development"
     ),
-    done: indexOf("data de conclusao", "data conclusao", "conclusao", "done"),
+    done: indexOf("resolved", "data de conclusao", "data conclusao", "conclusao", "done"),
     status: indexOf("status", "situacao", "situação"),
     flagged: indexOf("flagged", "flag", "impedimentos", "impedimento", "blocked", "blocker"),
-    owner: indexOf("quem esta fazendo", "responsavel", "responsável", "assignee", "owner"),
+    owner: indexOf("assignee", "quem esta fazendo", "responsavel", "responsável", "owner"),
   };
 
   return rows.slice(1).map((cells, position) => ({
@@ -278,8 +292,29 @@ function parseDate(value) {
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
 
-  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
+  const isoWithTime = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (isoWithTime) {
+    return new Date(
+      Number(isoWithTime[1]),
+      Number(isoWithTime[2]) - 1,
+      Number(isoWithTime[3]),
+      Number(isoWithTime[4]),
+      Number(isoWithTime[5]),
+      Number(isoWithTime[6] || 0)
+    );
+  }
+
+  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (br) {
+    return new Date(
+      Number(br[3]),
+      Number(br[2]) - 1,
+      Number(br[1]),
+      Number(br[4] || 0),
+      Number(br[5] || 0),
+      Number(br[6] || 0)
+    );
+  }
 
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -409,7 +444,7 @@ function getBlockedItems() {
 function ownerStats() {
   const stats = new Map();
   activeDemands().forEach((item) => {
-    const owner = item.owner || "Sem Definição";
+    const owner = item.owner || "Unassigned";
     const current = stats.get(owner) || { total: 0, done: 0, open: 0, dev: 0, blocked: 0, notStarted: 0 };
     current.total += 1;
     if (isDone(item)) current.done += 1;
