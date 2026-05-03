@@ -659,8 +659,15 @@ input[type="file"] {
   gap: 10px;
 }
 
+.sample-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+
 .sample-button {
   min-height: 44px;
+  width: 100%;
   border: 1px solid transparent;
   border-radius: 10px;
   padding: 0 12px;
@@ -689,6 +696,26 @@ input[type="file"] {
 }
 
 .sample-button:hover {
+  transform: translateY(-1px);
+}
+
+.sample-download {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 1.15rem;
+  font-weight: 950;
+  box-shadow: 0 8px 18px rgba(32, 32, 29, 0.06);
+}
+
+.sample-download:hover {
+  border-color: var(--green);
+  color: var(--green);
   transform: translateY(-1px);
 }
 

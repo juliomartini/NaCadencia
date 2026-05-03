@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-frame">
+    <div class="app-frame sidebar-collapsed">
       <aside class="main-sidebar" aria-label="Menu principal">
         <div class="sidebar-head">
           <div class="brand-lockup" aria-label="NaCadencia">
@@ -21,10 +21,10 @@
             class="menu-toggle"
             id="menuToggle"
             type="button"
-            aria-label="Recolher menu"
-            aria-expanded="true"
+            aria-label="Expandir menu"
+            aria-expanded="false"
           >
-            ‹
+            ›
           </button>
         </div>
         <nav class="main-nav">
@@ -134,7 +134,7 @@
                       <th>Colaborador</th>
                       <th>Sem Puxar</th>
                       <th>Em Progresso</th>
-                      <th>Impedidas</th>
+                      <th>Flagged</th>
                       <th>Concluídas</th>
                       <th>% atuação</th>
                     </tr>
@@ -163,7 +163,7 @@
                     <th>Em Progresso</th>
                     <th>Conclusão</th>
                     <th>WIP</th>
-                    <th>Impedimento</th>
+                    <th>Flagged</th>
                     <th>Responsável</th>
                     <th>Status</th>
                   </tr>
@@ -224,7 +224,7 @@
                   <strong>Selecionar arquivo</strong>
                   <small>
                     chave, data de criação, data em progresso, data de conclusão,
-                    impedimentos, quem está fazendo
+                    status, flagged, responsável
                   </small>
                 </span>
               </label>
@@ -238,15 +238,30 @@
           <div class="panel-section examples-section">
             <h2>Exemplos</h2>
             <div class="sample-actions" aria-label="Exemplos de burnup">
-              <button class="sample-button good" type="button" data-sample="onTrack">
-                Dentro do prazo
-              </button>
-              <button class="sample-button warning" type="button" data-sample="attention">
-                Ponto de atenção
-              </button>
-              <button class="sample-button critical" type="button" data-sample="risk">
-                Em risco
-              </button>
+              <div class="sample-row">
+                <button class="sample-button good" type="button" data-sample="onTrack">
+                  Dentro do prazo
+                </button>
+                <a class="sample-download" href="dentro-do-prazo.csv" download aria-label="Baixar CSV Dentro do prazo">
+                  ↓
+                </a>
+              </div>
+              <div class="sample-row">
+                <button class="sample-button warning" type="button" data-sample="attention">
+                  Ponto de atenção
+                </button>
+                <a class="sample-download" href="ponto-de-atencao.csv" download aria-label="Baixar CSV Ponto de atenção">
+                  ↓
+                </a>
+              </div>
+              <div class="sample-row">
+                <button class="sample-button critical" type="button" data-sample="risk">
+                  Em risco
+                </button>
+                <a class="sample-download" href="em-risco.csv" download aria-label="Baixar CSV Em risco">
+                  ↓
+                </a>
+              </div>
             </div>
           </div>
         </div>

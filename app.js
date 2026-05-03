@@ -104,10 +104,13 @@ function maxDateText(first, second) {
   return parseDate(first) > parseDate(second) ? first : second;
 }
 
+function minDateText(first, second) {
+  return parseDate(first) < parseDate(second) ? first : second;
+}
+
 function buildScenarioRows(doneCount, devCount, notStartedCount) {
   const rows = [];
   const people = ["Ana", "Bruno", "Carla", "Diego", "Elisa"];
-  const blockers = ["Dependência externa", "Aguardando homologação", "Ambiente indisponível"];
 
   for (let index = 0; index < doneCount; index += 1) {
     const done = doneDays[index % doneDays.length];
@@ -118,6 +121,7 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
       maxDateText("2026-04-15", addDays(dev, -1)),
       dev,
       done,
+      "DONE",
       "",
       people[index % people.length],
     ]);
@@ -125,12 +129,14 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
 
   for (let index = 0; index < devCount; index += 1) {
     const keyNumber = doneCount + index + 1;
+    const created = createdDays[(doneCount + index) % createdDays.length];
     rows.push([
       `C4001-${String(keyNumber).padStart(3, "0")}`,
-      createdDays[(doneCount + index) % createdDays.length],
+      minDateText(created, "2026-04-30"),
       "2026-04-30",
       "",
-      index < Math.ceil(devCount / 3) ? blockers[index % blockers.length] : "",
+      "IN PROGRESS",
+      index < Math.ceil(devCount / 3) ? "Impediment" : "",
       people[(doneCount + index) % people.length],
     ]);
   }
@@ -142,6 +148,7 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
       createdDays[(doneCount + devCount + index) % createdDays.length],
       "",
       "",
+      index % 2 === 0 ? "OPEN" : "BACKLOG",
       "",
       "",
     ]);
@@ -152,7 +159,7 @@ function buildScenarioRows(doneCount, devCount, notStartedCount) {
 
 function rowsToCsv(rows) {
   return [
-    "chave,data de criação,data em desenvolvimento,data de conclusão,impedimentos,quem está fazendo",
+    "chave,data de criação,data em progresso,data de conclusão,status,flagged,responsável",
     ...rows.map((row) => row.join(",")),
   ].join("\n");
 }
@@ -238,10 +245,14 @@ function parseCsv(text) {
       "data em desenvolvimento",
       "data desenvolvimento",
       "em desenvolvimento",
+      "data em progresso",
+      "data progresso",
+      "em progresso",
       "development"
     ),
     done: indexOf("data de conclusao", "data conclusao", "conclusao", "done"),
-    blockers: indexOf("impedimentos", "impedimento", "blocked", "blocker"),
+    status: indexOf("status", "situacao", "situação"),
+    flagged: indexOf("flagged", "flag", "impedimentos", "impedimento", "blocked", "blocker"),
     owner: indexOf("quem esta fazendo", "responsavel", "responsável", "assignee", "owner"),
   };
 
@@ -250,7 +261,8 @@ function parseCsv(text) {
     created: parseDate(cell(cells, indexes.created)),
     dev: parseDate(cell(cells, indexes.dev)),
     done: parseDate(cell(cells, indexes.done)),
-    blockers: cell(cells, indexes.blockers),
+    status: normalizeStatus(cell(cells, indexes.status)),
+    flagged: cell(cells, indexes.flagged),
     owner: cell(cells, indexes.owner),
   }));
 }
@@ -300,25 +312,57 @@ function signedDaysBetween(start, end) {
   return Math.round((startOfDay(end) - startOfDay(start)) / 86400000);
 }
 
+function normalizeStatus(value) {
+  const status = normalize(value).toUpperCase();
+  if (!status) return "";
+  return status;
+}
+
+function effectiveStatus(item) {
+  if (item.status) return item.status;
+  if (item.done) return "DONE";
+  if (item.dev) return "IN PROGRESS";
+  if (item.created) return "OPEN";
+  return "INVALID";
+}
+
+function isDone(item) {
+  return effectiveStatus(item) === "DONE";
+}
+
+function isInProgress(item) {
+  return effectiveStatus(item) === "IN PROGRESS";
+}
+
+function isNotStarted(item) {
+  return ["OPEN", "BACKLOG"].includes(effectiveStatus(item));
+}
+
+function isRemoved(item) {
+  return ["REMOVED", "CANCELED"].includes(effectiveStatus(item));
+}
+
+function activeDemands() {
+  return state.demands.filter((item) => !isRemoved(item));
+}
+
 function getStatus(item) {
-  if (item.done) return "Concluído";
-  if (item.dev) return "Em Progresso";
-  if (item.created) return "Sem iniciar";
-  return "Data inválida";
+  return effectiveStatus(item);
 }
 
 function statusClass(status) {
-  if (status === "Concluído") return "done";
-  if (status === "Em Progresso") return "dev";
-  if (status === "Sem iniciar") return "backlog";
+  if (status === "DONE") return "done";
+  if (status === "IN PROGRESS") return "dev";
+  if (status === "OPEN" || status === "BACKLOG") return "backlog";
   return "issue";
 }
 
 function countDemands() {
-  const total = state.demands.length;
-  const done = state.demands.filter((item) => item.done).length;
-  const dev = state.demands.filter((item) => item.dev && !item.done).length;
-  const notStarted = state.demands.filter((item) => !item.dev && !item.done).length;
+  const demands = activeDemands();
+  const total = demands.length;
+  const done = demands.filter(isDone).length;
+  const dev = demands.filter(isInProgress).length;
+  const notStarted = demands.filter(isNotStarted).length;
   const percentile75 = percentile75Wip();
   return {
     total,
@@ -342,8 +386,8 @@ function wipDays(item) {
 }
 
 function percentile75Wip() {
-  const deliveredWips = state.demands
-    .filter((item) => item.done && item.dev)
+  const deliveredWips = activeDemands()
+    .filter((item) => isDone(item) && item.done && item.dev)
     .map((item) => wipDays(item))
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => a - b);
@@ -359,20 +403,20 @@ function formatDays(value) {
 }
 
 function getBlockedItems() {
-  return state.demands.filter((item) => item.blockers);
+  return activeDemands().filter((item) => item.flagged && !isDone(item));
 }
 
 function ownerStats() {
   const stats = new Map();
-  state.demands.forEach((item) => {
+  activeDemands().forEach((item) => {
     const owner = item.owner || "Sem Definição";
     const current = stats.get(owner) || { total: 0, done: 0, open: 0, dev: 0, blocked: 0, notStarted: 0 };
     current.total += 1;
-    if (item.done) current.done += 1;
-    if (!item.done) current.open += 1;
-    if (item.dev && !item.done) current.dev += 1;
-    if (!item.dev && !item.done) current.notStarted += 1;
-    if (item.blockers) current.blocked += 1;
+    if (isDone(item)) current.done += 1;
+    if (!isDone(item)) current.open += 1;
+    if (isInProgress(item)) current.dev += 1;
+    if (isNotStarted(item)) current.notStarted += 1;
+    if (item.flagged && !isDone(item)) current.blocked += 1;
     stats.set(owner, current);
   });
   return [...stats.entries()].sort((a, b) => b[1].total - a[1].total);
@@ -414,13 +458,14 @@ function subtitleText(hasEpic, counts) {
 }
 
 function renderTable(demands) {
-  if (!demands.length) {
+  const visibleDemands = demands.filter((item) => !isRemoved(item));
+  if (!visibleDemands.length) {
     els.demandRows.innerHTML =
       '<tr><td colspan="8" class="muted-cell">As demandas aparecerão aqui.</td></tr>';
     return;
   }
 
-  els.demandRows.innerHTML = demands
+  els.demandRows.innerHTML = visibleDemands
     .map((item) => {
       const status = getStatus(item);
       return `<tr>
@@ -429,7 +474,7 @@ function renderTable(demands) {
         <td>${formatDate(item.dev)}</td>
         <td>${formatDate(item.done)}</td>
         <td>${formatDays(wipDays(item))}</td>
-        <td>${escapeHtml(item.blockers || "-")}</td>
+        <td>${escapeHtml(item.flagged || "-")}</td>
         <td>${escapeHtml(item.owner || "-")}</td>
         <td><span class="tag ${statusClass(status)}">${status}</span></td>
       </tr>`;
@@ -500,12 +545,13 @@ function renderInsights() {
   const actual = point.done;
   const gap = actual - planned;
   const completion = counts.total ? counts.done / counts.total : 0;
-  const openRatio = counts.total ? counts.open / counts.total : 0;
+  const activeFlagged = getBlockedItems().length;
+  const tolerance = Math.max(2, Math.ceil(counts.total * 0.1));
   const analysisDate = formatDate(point.date);
   const remaining = formatRemainingDays();
   const diagnosticActions = buildDiagnosticActions(counts);
 
-  if (gap >= 0 && openRatio <= 0.4) {
+  if (gap >= tolerance || (gap >= 0 && completion >= 0.5)) {
     els.trafficLight.classList.add("good");
     els.insightsPanel.classList.add("good");
     setInsightContent({
@@ -525,12 +571,12 @@ function renderInsights() {
     return;
   }
 
-  if (gap >= -Math.max(2, Math.ceil(counts.total * 0.1)) && completion >= 0.2) {
+  if (gap >= -tolerance && (completion >= 0.2 || gap >= 0 || activeFlagged > 0)) {
     els.trafficLight.classList.add("warning");
     els.insightsPanel.classList.add("warning");
     setInsightContent({
       title: "Amarelo: atenção na cadência",
-      summary: `Hoje (${analysisDate}), há pequeno desvio contra a linha planejada. ${remaining}.`,
+      summary: `Hoje (${analysisDate}), há ponto de atenção contra a cadência esperada ou flags abertas. ${remaining}.`,
       planned,
       actual,
       gap,
@@ -538,7 +584,7 @@ function renderInsights() {
       actions: [
         "Limitar WIP e priorizar conclusão antes de iniciar novas demandas.",
         "Quebrar demandas grandes para reduzir tempo em progresso.",
-        "Fazer uma revisão rápida de impedimentos com donos e prazo de remoção.",
+        "Fazer uma revisão rápida dos itens flagged com donos e prazo de remoção.",
         ...diagnosticActions,
       ],
     });
@@ -565,22 +611,23 @@ function renderInsights() {
 
 function buildDiagnosticActions(counts) {
   const blocked = getBlockedItems();
-  const inProgress = state.demands.filter((item) => item.dev && !item.done);
-  const topFlow = [...state.demands]
-    .filter((item) => !item.done)
+  const demands = activeDemands();
+  const inProgress = demands.filter(isInProgress);
+  const topFlow = [...demands]
+    .filter((item) => !isDone(item))
     .sort((a, b) => flowDays(b) - flowDays(a))
     .slice(0, 3);
   const actions = [];
 
   if (blocked.length) {
     actions.push(
-      `${blocked.length} demanda(s) impedida(s): ${blocked
+      `${blocked.length} demanda(s) flagged: ${blocked
         .slice(0, 3)
-        .map((item) => `${item.key} (${item.blockers})`)
+        .map((item) => `${item.key} (${item.flagged})`)
         .join(", ")}. Definir dono da remoção e prazo ainda hoje.`
     );
   } else {
-    actions.push("Não há impedimentos explícitos no CSV; confirmar se o time está registrando bloqueios de forma consistente.");
+    actions.push("Não há itens flagged no CSV; confirmar se o time está registrando flags de forma consistente.");
   }
 
   if (topFlow.length) {
@@ -626,7 +673,7 @@ function setInsightContent({ title, summary, planned, actual, gap, remaining, ac
 
 function renderOwnerDistribution() {
   const stats = ownerStats();
-  const total = state.demands.length;
+  const total = activeDemands().length;
 
   if (!stats.length || !total) {
     els.ownerDistribution.classList.add("empty");
@@ -657,7 +704,8 @@ function buildSeries() {
   const max = startOfDay(state.targetEnd);
   if (max < min) return [];
 
-  const total = state.demands.length;
+  const demands = activeDemands();
+  const total = demands.length;
   const totalDays = Math.max(1, daysBetween(min, max));
   const analysisLimit = new Date(Math.min(Math.max(today().getTime(), min.getTime()), max.getTime()));
   const series = [];
@@ -668,10 +716,10 @@ function buildSeries() {
     series.push({
       date,
       planned: total ? (elapsedDays / totalDays) * total : 0,
-      done: state.demands.filter(
-        (item) => item.done && startOfDay(item.done) <= date && startOfDay(item.done) <= analysisLimit
+      done: demands.filter(
+        (item) => isDone(item) && item.done && startOfDay(item.done) <= date && startOfDay(item.done) <= analysisLimit
       ).length,
-      scope: state.demands.filter((item) => !item.created || startOfDay(item.created) <= date).length,
+      scope: demands.filter((item) => !item.created || startOfDay(item.created) <= date).length,
     });
   }
 
